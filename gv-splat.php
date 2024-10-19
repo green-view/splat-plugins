@@ -15,7 +15,7 @@
  * @wordpress-plugin
  * Plugin Name:       Splat by GreenView
  * Plugin URI:        https://green-view.nl
- * Description:       This is a description of the plugin.
+ * Description:       Plugin to attach SPLAT
  * Version:           1.0.0
  * Author:            GreenView
  * Author URI:        https://green-view.nl/
