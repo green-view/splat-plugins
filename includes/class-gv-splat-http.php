@@ -12,7 +12,7 @@
  */
 
 class Gv_Splat_HTTP {
-	const URL = 'https://gsplat.ciptadusa.com';
+	const URL = 'https://api-stg.green-view.nl';
 
 	/**
 	 * Make a GET request
@@ -36,11 +36,16 @@ class Gv_Splat_HTTP {
 	 *
 	 * @return array The headers including Authorization.
 	 */
-	private static function get_authorization_header() {
+	private static function get_authorization_header( $isCurl = false ) {
 		$token = get_option( 'gv_splat_token' );
 
 		if ( empty( $token ) ) {
 			return array(); // No token, no authorization header
+		}
+		if ( $isCurl ) {
+			return array(
+				'Authorization: Bearer ' . $token,  // Correct string format for cURL
+			);
 		}
 
 		return array(
@@ -100,6 +105,161 @@ class Gv_Splat_HTTP {
 		} else {
 			return wp_remote_retrieve_body( $response );
 		}
+	}
+
+// File: admin/class-gv-splat-manager.php
+
+	public static function create_splat( $payload ) {
+		// API URL for creating the Splat
+		$url = self::URL . '/splat-wp/create';
+
+		// Prepare headers (you can customize this based on your authorization method)
+		$headers                 = self::get_authorization_header();
+		$headers['Content-Type'] = 'application/json'; // Ensure the request is sent as JSON
+
+		// Send the POST request with the payload
+		$response = wp_remote_post( $url, array(
+			'body'    => json_encode( $payload ),
+			'headers' => $headers,
+		) );
+
+		// Check if the response is valid
+		if ( is_wp_error( $response ) ) {
+			return 'Error: ' . $response->get_error_message();
+		}
+
+		// Retrieve the response body
+		$body = wp_remote_retrieve_body( $response );
+
+		// Return the response data
+		return json_decode( $body, true );
+	}
+
+	public static function upload_file( $file ) {
+		// Check if the file was uploaded correctly
+		if ( ! isset( $file ) || $file['error'] != 0 ) {
+			return false;
+		}
+
+		// Prepare the file for cURL upload
+		$file_data = curl_file_create( $file['tmp_name'], $file['type'], $file['name'] );
+
+		// API URL for uploading files
+		$url = self::URL . '/splat-wp/upload';
+
+		// Initialize cURL session
+		$ch = curl_init();
+
+		// Prepare headers (Authorization headers or others if required)
+		$headers   = self::get_authorization_header( true ); // Assuming this returns an array of headers
+		$headers[] = 'Content-Type: multipart/form-data'; // For file upload
+
+		// Prepare cURL options
+		curl_setopt( $ch, CURLOPT_URL, $url );
+		curl_setopt( $ch, CURLOPT_POST, true );
+		curl_setopt( $ch, CURLOPT_POSTFIELDS, array( 'file' => $file_data ) );
+		curl_setopt( $ch, CURLOPT_HTTPHEADER, $headers );
+		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true ); // Return response as string instead of outputting it
+
+		// Execute cURL request
+		$response = curl_exec( $ch );
+
+		// Check for cURL errors
+		if ( curl_errno( $ch ) ) {
+			$error_msg = curl_error( $ch );
+			curl_close( $ch );
+
+			return 'Error: ' . $error_msg;
+		}
+
+		// Close cURL session
+		curl_close( $ch );
+
+		// Decode the response
+		$response_data = json_decode( $response, true );
+
+		// Check if the response indicates success
+		if ( isset( $response_data['success'] ) && $response_data['success'] ) {
+			return $response_data['responseObject']['id']; // Return the file ID
+		} else {
+			return false; // Return false if upload failed
+		}
+	}
+
+	public static function update_splat( $id, $payload ) {
+		// API URL for updating the Splat
+		$url = self::URL . '/splat-wp/update/' . intval( $id );
+
+		// Prepare headers (Authorization headers or others if required)
+		$headers                 = self::get_authorization_header();
+		$headers['Content-Type'] = 'application/json'; // Ensure the request is sent as JSON
+
+		// Send the PUT request with the payload
+		$response = wp_remote_request( $url, array(
+			'method'  => 'PUT',
+			'body'    => json_encode( $payload ),
+			'headers' => $headers,
+		) );
+
+		// Check if the response is valid
+		if ( is_wp_error( $response ) ) {
+			return 'Error: ' . $response->get_error_message();
+		}
+
+		// Retrieve the response body
+		$body = wp_remote_retrieve_body( $response );
+
+		// Return the response data
+		return json_decode( $body, true );
+	}
+
+	public static function get_splat( $id ) {
+		// API URL for retrieving the Splat
+		$url = self::URL . '/splat-wp/get/' . intval( $id );
+
+		// Prepare headers (Authorization headers or others if required)
+		$args = array(
+			'headers' => self::get_authorization_header(),
+		);
+
+		// Send the GET request
+		$response = wp_remote_get( $url, $args );
+
+		// Check if the response is valid
+		if ( is_wp_error( $response ) ) {
+			return array( 'success' => false, 'message' => $response->get_error_message() );
+		}
+
+		// Retrieve the response body
+		$body = wp_remote_retrieve_body( $response );
+
+		// Return the response data
+		return json_decode( $body, true );
+	}
+
+	public static function delete_splat( $id ) {
+		// API URL for deleting the Splat
+		$url = self::URL . '/splat-wp/delete/' . intval( $id );
+
+		// Prepare headers (Authorization headers or others if required)
+		$args = array(
+			'method'  => 'DELETE',
+			'headers' => self::get_authorization_header(),
+		);
+
+		// Send the DELETE request
+		$response = wp_remote_request( $url, $args );
+
+		// Check if the response is valid
+		if ( is_wp_error( $response ) ) {
+			return 'Error: ' . $response->get_error_message();
+		}
+
+		// Retrieve the response body
+		$body = wp_remote_retrieve_body( $response );
+
+		// Return the response data
+		return json_decode( $body, true );
 	}
 
 }

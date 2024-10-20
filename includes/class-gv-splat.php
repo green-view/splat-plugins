@@ -110,6 +110,7 @@ class Gv_Splat {
 		 * of the plugin.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-gv-splat-i18n.php';
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-gv-splat-shortcode.php';
 
 		/**
 		 * The class responsible for defining all actions that occur in the admin area.
@@ -157,11 +158,13 @@ class Gv_Splat {
 	 */
 	private function define_admin_hooks() {
 
-		$plugin_admin   = new Gv_Splat_Admin( $this->get_plugin_name(), $this->get_version() );
-		$plugin_manager = new Gv_Splat_Manager();
+		$plugin_admin     = new Gv_Splat_Admin( $this->get_plugin_name(), $this->get_version() );
+		$plugin_manager   = new Gv_Splat_Manager();
+		$plugin_shortcode = new Gv_Splat_Shortcode();
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
+		$this->loader->add_action( 'init', $plugin_shortcode, 'init' );
 		$plugin_admin->init();
 		$plugin_manager->init();
 

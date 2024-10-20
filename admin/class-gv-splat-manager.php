@@ -11,6 +11,8 @@
  * @subpackage Gv_Splat/admin
  */
 
+require_once plugin_dir_path( __FILE__ ) . '../includes/class-gv-splat-http.php';
+
 class Gv_Splat_Manager {
 
 	private $limit = 10;
@@ -73,37 +75,68 @@ class Gv_Splat_Manager {
 			// Handle the form submission here
 			$splat_file     = $_FILES['splat_file'];
 			$thumbnail_file = ! empty( $_FILES['thumbnail_file']['name'] ) ? $_FILES['thumbnail_file'] : null;
-			$title          = sanitize_text_field( $_POST['title'] );
-			$description    = sanitize_textarea_field( $_POST['description'] );
-			$is_animated    = isset( $_POST['is_animated'] ) ? true : false;
 
-			// Call the function to upload the splat file
 			$storage_id   = $this->upload_file( $splat_file );
 			$thumbnail_id = $thumbnail_file ? $this->upload_file( $thumbnail_file ) : null;
 
 			if ( $storage_id ) {
+				// Proceed with creating the splat after both file uploads
 				$payload = array(
-					'storage_id'   => $storage_id,
-					'title'        => $title,
-					'description'  => $description,
-					'thumbnail_id' => $thumbnail_id,
-					'is_animated'  => $is_animated,
+					'storage_id'  => $storage_id,
+					'title'       => sanitize_text_field( $_POST['title'] ),
+					'description' => sanitize_textarea_field( $_POST['description'] ),
+					'is_animated' => isset( $_POST['is_animated'] ) ? true : false,
 				);
+				if ( $thumbnail_id ) {
+					$payload['thumbnail_id'] = $thumbnail_id;
+				}
 
-				// Create the splat with the payload
+				// Call your function to create the Splat using the payload
 				$create_response = $this->create_splat( $payload );
 
 				if ( $create_response['success'] ) {
-					echo '<div class="notice notice-success is-dismissible"><p>Splat created successfully!</p></div>';
-					echo '<script type="text/javascript">window.location.href = "' . admin_url( 'admin.php?page=gv_splat_manager' ) . '";</script>';
+					// Success: Show a success message and a button to go back to the list
+					echo '<div class="notice notice-success is-dismissible">
+            <p>' . esc_html__( 'Splat created successfully!', 'gv-splat' ) . '</p>
+            <p><a href="' . esc_url( admin_url( 'admin.php?page=gv_splat_manager' ) ) . '" class="button button-primary">' . esc_html__( 'Back to List', 'gv-splat' ) . '</a></p>
+          </div>';
 				} else {
-					echo '<div class="notice notice-error is-dismissible"><p>Failed to create Splat. Please try again.</p></div>';
+					// Handle error: Show an error message and a button to go back to the list
+					echo '<div class="notice notice-error is-dismissible">
+            <p>' . esc_html__( 'Error creating splat: ', 'gv-splat' ) . esc_html( $create_response['message'] ) . '</p>
+            <p><a href="' . esc_url( admin_url( 'admin.php?page=gv_splat_manager' ) ) . '" class="button button-secondary">' . esc_html__( 'Back to List', 'gv-splat' ) . '</a></p>
+          </div>';
 				}
+
 			} else {
-				echo '<div class="notice notice-error is-dismissible"><p>Failed to upload files. Please check your inputs and try again.</p></div>';
+				// Handle file upload error
+				echo '<div class="notice notice-error">Error uploading file. Please try again.</div>';
 			}
+
 		}
 	}
+
+	public function upload_file( $file ) {
+		$response = Gv_Splat_HTTP::upload_file( $file );
+		if ( $response ) {
+			return $response;
+		}
+
+		return false;
+	}
+
+	// Fetch Splats from API with pagination
+
+	private function create_splat( $payload ) {
+		$response = Gv_Splat_HTTP::create_splat( $payload );
+		if ( $response ) {
+			return $response;
+		}
+
+		return false;
+	}
+
+	// Hook to initialize management page
 
 	public function display_splats_list() {
 		$current_page = isset( $_GET['paged'] ) ? max( 1, intval( $_GET['paged'] ) ) : 1;
@@ -150,13 +183,15 @@ class Gv_Splat_Manager {
                                 <input type="text" readonly
                                        value="[splat_shortcode id='<?php echo esc_attr( $splat['id'] ); ?>']"
                                        onclick="this.select();" style="width:150px;">
-                                <button class="button button-secondary"
-                                        onclick="this.previousSibling.select(); document.execCommand('copy');">Copy
-                                </button>
                             </td>
                             <td>
-                                <a href="#" class="button button-primary">Update</a>
-                                <a href="#" class="button button-link-delete">Delete</a>
+                                <form method="post" action="">
+                                    <input type="hidden" name="splat_id"
+                                           value="<?php echo esc_attr( $splat['id'] ); ?>">
+                                    <input type="submit" name="delete_splat" value="Delete"
+                                           class="button button-link-delete"
+                                           onclick="return confirm('Are you sure you want to delete this splat?');">
+                                </form>
                             </td>
                         </tr>
 					<?php endforeach; ?>
@@ -208,19 +243,17 @@ class Gv_Splat_Manager {
             </div>
         </div>
 		<?php
+		if ( isset( $_POST['delete_splat'] ) && isset( $_POST['splat_id'] ) ) {
+			Gv_Splat_HTTP::delete_splat( intval( $_POST['splat_id'] ) );
+		}
 	}
 
-	// Fetch Splats from API with pagination
-
 	private function get_splats( $limit, $page ) {
-		require_once plugin_dir_path( __FILE__ ) . '../includes/class-gv-splat-http.php';
 		$data = Gv_Splat_HTTP::get_splats( $limit, $page );
 
 		// Decode JSON response
 		return json_decode( $data, true );
 	}
-
-	// Hook to initialize management page
 
 	public function init() {
 		add_action( 'admin_menu', array( $this, 'add_management_page' ) );
