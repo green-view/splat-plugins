@@ -35,7 +35,7 @@ class Gv_Splat {
 	 *
 	 * @since    1.0.0
 	 * @access   protected
-	 * @var      Gv_Splat_Loader    $loader    Maintains and registers all hooks for the plugin.
+	 * @var      Gv_Splat_Loader $loader Maintains and registers all hooks for the plugin.
 	 */
 	protected $loader;
 
@@ -44,7 +44,7 @@ class Gv_Splat {
 	 *
 	 * @since    1.0.0
 	 * @access   protected
-	 * @var      string    $plugin_name    The string used to uniquely identify this plugin.
+	 * @var      string $plugin_name The string used to uniquely identify this plugin.
 	 */
 	protected $plugin_name;
 
@@ -53,7 +53,7 @@ class Gv_Splat {
 	 *
 	 * @since    1.0.0
 	 * @access   protected
-	 * @var      string    $version    The current version of the plugin.
+	 * @var      string $version The current version of the plugin.
 	 */
 	protected $version;
 
@@ -117,6 +117,11 @@ class Gv_Splat {
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-gv-splat-admin.php';
 
 		/**
+		 * The class responsible for defining all actions that occur in the manager area.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-gv-splat-manager.php';
+
+		/**
 		 * The class responsible for defining all actions that occur in the public-facing
 		 * side of the site.
 		 */
@@ -152,11 +157,35 @@ class Gv_Splat {
 	 */
 	private function define_admin_hooks() {
 
-		$plugin_admin = new Gv_Splat_Admin( $this->get_plugin_name(), $this->get_version() );
+		$plugin_admin   = new Gv_Splat_Admin( $this->get_plugin_name(), $this->get_version() );
+		$plugin_manager = new Gv_Splat_Manager();
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
+		$plugin_admin->init();
+		$plugin_manager->init();
 
+	}
+
+	/**
+	 * The name of the plugin used to uniquely identify it within the context of
+	 * WordPress and to define internationalization functionality.
+	 *
+	 * @return    string    The name of the plugin.
+	 * @since     1.0.0
+	 */
+	public function get_plugin_name() {
+		return $this->plugin_name;
+	}
+
+	/**
+	 * Retrieve the version number of the plugin.
+	 *
+	 * @return    string    The version number of the plugin.
+	 * @since     1.0.0
+	 */
+	public function get_version() {
+		return $this->version;
 	}
 
 	/**
@@ -185,34 +214,13 @@ class Gv_Splat {
 	}
 
 	/**
-	 * The name of the plugin used to uniquely identify it within the context of
-	 * WordPress and to define internationalization functionality.
-	 *
-	 * @since     1.0.0
-	 * @return    string    The name of the plugin.
-	 */
-	public function get_plugin_name() {
-		return $this->plugin_name;
-	}
-
-	/**
 	 * The reference to the class that orchestrates the hooks with the plugin.
 	 *
-	 * @since     1.0.0
 	 * @return    Gv_Splat_Loader    Orchestrates the hooks of the plugin.
+	 * @since     1.0.0
 	 */
 	public function get_loader() {
 		return $this->loader;
-	}
-
-	/**
-	 * Retrieve the version number of the plugin.
-	 *
-	 * @since     1.0.0
-	 * @return    string    The version number of the plugin.
-	 */
-	public function get_version() {
-		return $this->version;
 	}
 
 }

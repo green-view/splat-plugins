@@ -52,8 +52,6 @@ class Gv_Splat_Admin {
 
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
-		add_action( 'admin_menu', array( $this, 'add_settings_page' ) );
-		add_action( 'admin_init', array( $this, 'register_settings' ) );
 	}
 
 	/**
@@ -115,7 +113,7 @@ class Gv_Splat_Admin {
 	public function display_settings_page() {
 		?>
         <div class="wrap">
-            <h1>GV Splat Settings</h1>
+            <h1 class="wp-heading-inline">GV Splat Settings</h1>
             <form method="post" action="options.php">
 				<?php
 				settings_fields( 'gv_splat_settings_group' );
@@ -123,8 +121,57 @@ class Gv_Splat_Admin {
 				submit_button();
 				?>
             </form>
+
+			<?php
+			// Display fetched company information if available
+			$company_info = $this->get_company_info();
+
+			if ( $company_info && isset( $company_info['success'] ) && $company_info['success'] ) {
+				?>
+                <div class="notice notice-success is-dismissible">
+                    <h2>Company Information</h2>
+                    <table class="form-table">
+                        <tbody>
+                        <tr>
+                            <th scope="row">Company Name</th>
+                            <td><?php echo esc_html( $company_info['responseObject']['name'] ); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Company ID</th>
+                            <td><?php echo esc_html( $company_info['responseObject']['id'] ); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Domain</th>
+                            <td><?php echo esc_html( $company_info['responseObject']['domain'] ); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Status</th>
+                            <td><?php echo( $company_info['responseObject']['status'] ? 'Active' : 'Inactive' ); ?></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+				<?php
+			} else {
+				?>
+                <div class="notice notice-warning">
+                    <p><?php _e( 'No company information available.', 'gv-splat' ); ?></p>
+                </div>
+				<?php
+			}
+			?>
         </div>
 		<?php
+	}
+
+
+	private function get_company_info() {
+		require_once plugin_dir_path( __FILE__ ) . '../includes/class-gv-splat-http.php';
+		// Fetch information from the API using saved token
+		$response_json = Gv_Splat_HTTP::get_user_info();
+
+		// Decode JSON response
+		return json_decode( $response_json, true );
 	}
 
 	public function register_settings() {
@@ -149,6 +196,13 @@ class Gv_Splat_Admin {
 	public function token_input_field_callback() {
 		$token = get_option( 'gv_splat_token' );
 		echo '<input type="text" id="gv_splat_token" name="gv_splat_token" value="' . esc_attr( $token ) . '" />';
+	}
+
+	// Hook to initialize admin settings page
+
+	public function init() {
+		add_action( 'admin_menu', array( $this, 'add_settings_page' ) );
+		add_action( 'admin_init', array( $this, 'register_settings' ) );
 	}
 
 }

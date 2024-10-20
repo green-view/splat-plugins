@@ -12,6 +12,7 @@
  */
 
 class Gv_Splat_HTTP {
+	const URL = 'https://gsplat.ciptadusa.com';
 
 	/**
 	 * Make a GET request
@@ -66,4 +67,39 @@ class Gv_Splat_HTTP {
 
 		return $response;
 	}
+
+	public static function get_user_info() {
+		$_uri = self::URL;
+		$url  = "$_uri/splat-wp/me";
+
+		$args = array(
+			'headers' => self::get_authorization_header(),
+		);
+
+		$response = wp_remote_post( $url, $args );
+		if ( is_wp_error( $response ) ) {
+			$error_message = $response->get_error_message();
+
+			return 'Error: ' . $error_message;
+		} else {
+			return wp_remote_retrieve_body( $response );
+		}
+	}
+
+	public static function get_splats( $limit, $page ) {
+		$url  = self::URL . '/splat-wp/list?limit=' . intval( $limit ) . '&page=' . intval( $page );
+		$args = array(
+			'headers' => self::get_authorization_header(),
+		);
+
+		$response = wp_remote_get( $url, $args );
+		if ( is_wp_error( $response ) ) {
+			$error_message = $response->get_error_message();
+
+			return 'Error: ' . $error_message;
+		} else {
+			return wp_remote_retrieve_body( $response );
+		}
+	}
+
 }
