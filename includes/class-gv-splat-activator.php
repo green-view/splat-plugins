@@ -30,7 +30,18 @@ class Gv_Splat_Activator {
 	 * @since    1.0.0
 	 */
 	public static function activate() {
+        $upload_dir = wp_upload_dir();
+        $splat_dir = $upload_dir['basedir'] . '/splats';
 
+        if (!file_exists($splat_dir)) {
+            wp_mkdir_p($splat_dir);
+
+            // Protect directory
+            $htaccess = $splat_dir . '/.htaccess';
+            if (!file_exists($htaccess)) {
+                file_put_contents($htaccess, 'Options -Indexes');
+            }
+        }
 	}
 
 }

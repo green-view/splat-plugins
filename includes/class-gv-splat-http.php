@@ -213,29 +213,71 @@ class Gv_Splat_HTTP {
 		return json_decode( $body, true );
 	}
 
-	public static function get_splat( $id ) {
-		// API URL for retrieving the Splat
-		$url = self::URL . '/splat-wp/get/' . intval( $id );
+    public static function get_splat($id)
+    {
+        // API URL for retrieving the Splat
+        $url = self::URL . '/splat-wp/get/' . intval($id);
 
-		// Prepare headers (Authorization headers or others if required)
-		$args = array(
-			'headers' => self::get_authorization_header(),
-		);
+        // Prepare headers
+        $args = array(
+            'headers' => self::get_authorization_header(),
+            'timeout' => 30, // Increase timeout
+        );
 
-		// Send the GET request
-		$response = wp_remote_get( $url, $args );
+        // Send the GET request
+        $response = wp_remote_get($url, $args);
 
-		// Check if the response is valid
-		if ( is_wp_error( $response ) ) {
-			return array( 'success' => false, 'message' => $response->get_error_message() );
-		}
+        // Debug logging
+        error_log('Splat API Response for ID ' . $id . ': ' . print_r($response, true));
 
-		// Retrieve the response body
-		$body = wp_remote_retrieve_body( $response );
+        // Check if response is WP_Error
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'message' => 'WordPress Error: ' . $response->get_error_message()
+            );
+        }
 
-		// Return the response data
-		return json_decode( $body, true );
-	}
+        // Get response code
+        $response_code = wp_remote_retrieve_response_code($response);
+        if ($response_code !== 200) {
+            return array(
+                'success' => false,
+                'message' => 'HTTP Error: ' . $response_code
+            );
+        }
+
+        // Get response body
+        $body = wp_remote_retrieve_body($response);
+
+        // Debug logging
+        error_log('Splat API Response Body: ' . $body);
+
+        // Decode JSON response
+        $data = json_decode($body, true);
+
+        // Check for JSON decode errors
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return array(
+                'success' => false,
+                'message' => 'JSON Error: ' . json_last_error_msg()
+            );
+        }
+
+        // If response doesn't contain required data
+        if (!isset($data['responseObject']) || empty($data['responseObject'])) {
+            return array(
+                'success' => false,
+                'message' => 'Invalid response format or empty data'
+            );
+        }
+
+        // Return successful response
+        return array(
+            'success' => true,
+            'responseObject' => $data['responseObject']
+        );
+    }
 
 	public static function delete_splat( $id ) {
 		// API URL for deleting the Splat

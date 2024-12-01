@@ -139,15 +139,55 @@ class Gv_Splat_Manager {
 	// Hook to initialize management page
 
 	public function display_splats_list() {
-		$current_page = isset( $_GET['paged'] ) ? max( 1, intval( $_GET['paged'] ) ) : 1;
-		$splats       = $this->get_splats( $this->limit, $current_page );
+        $current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+        $splats = $this->get_splats($this->limit, $current_page);
 
-		?>
+        ?>
         <div class="wrap">
             <h1 class="wp-heading-inline">GV Splats Management</h1>
-            <a href="<?php echo admin_url( 'admin.php?page=gv_splat_manager&action=add' ); ?>"
+            <a href="<?php echo admin_url('admin.php?page=gv_splat_manager&action=add'); ?>"
                class="page-title-action">Add New</a>
             <hr class="wp-header-end">
+
+            <?php
+            // Error Handling
+            if (is_wp_error($splats)) {
+                ?>
+                <div class="notice notice-error">
+                    <p><?php echo esc_html($splats->get_error_message()); ?></p>
+                </div>
+                <?php
+                return;
+            }
+
+            // API Error Response Handling
+            if (!isset($splats['success']) || !$splats['success']) {
+                $error_message = isset($splats['message'])
+                    ? $splats['message']
+                    : 'An unknown error occurred while fetching splats.';
+                ?>
+                <div class="notice notice-error">
+                    <p><?php echo esc_html($error_message); ?></p>
+                    <?php if (isset($splats['code'])): ?>
+                        <p>Error Code: <?php echo esc_html($splats['code']); ?></p>
+                    <?php endif; ?>
+                </div>
+                <?php
+                return;
+            }
+
+            // No Splats Found
+            if (empty($splats['responseObject'])) {
+                ?>
+                <div class="notice notice-warning">
+                    <p><?php _e('No splats found. Click "Add New" to create your first splat.', 'gv-splat'); ?></p>
+                </div>
+                <?php
+                return;
+            }
+            ?>
+
+            <!-- Splats Table -->
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                 <tr>
@@ -161,99 +201,131 @@ class Gv_Splat_Manager {
                 </tr>
                 </thead>
                 <tbody>
-				<?php if ( $splats && isset( $splats['success'] ) && $splats['success'] ) : ?>
-					<?php foreach ( $splats['responseObject'] as $splat ) : ?>
-                        <tr>
-                            <td><?php echo esc_html( $splat['id'] ); ?></td>
-                            <td><?php echo esc_html( $splat['title'] ); ?></td>
-                            <td><?php echo esc_html( $splat['description'] ); ?></td>
-                            <td>
-								<?php if ( ! empty( $splat['thumbnail_url'] ) ) : ?>
-                                    <img src="<?php echo esc_url( $splat['thumbnail_url'] ); ?>" alt="Thumbnail"
-                                         width="50" height="50">
-								<?php else : ?>
-                                    <div class="placeholder-thumbnail"
-                                         style="width:50px; height:50px; background:#ccc; display:flex; align-items:center; justify-content:center;">
-                                        N/A
-                                    </div>
-								<?php endif; ?>
-                            </td>
-                            <td><?php echo esc_html( date( 'Y-m-d H:i', strtotime( $splat['created_at'] ) ) ); ?></td>
-                            <td>
-                                <input type="text" readonly
-                                       value="[splat_shortcode id='<?php echo esc_attr( $splat['id'] ); ?>']"
-                                       onclick="this.select();" style="width:150px;">
-                            </td>
-                            <td>
-                                <form method="post" action="">
-                                    <input type="hidden" name="splat_id"
-                                           value="<?php echo esc_attr( $splat['id'] ); ?>">
-                                    <input type="submit" name="delete_splat" value="Delete"
-                                           class="button button-link-delete"
-                                           onclick="return confirm('Are you sure you want to delete this splat?');">
-                                </form>
-                            </td>
-                        </tr>
-					<?php endforeach; ?>
-				<?php else : ?>
+                <?php foreach ($splats['responseObject'] as $splat): ?>
                     <tr>
-                        <td colspan="7">No Splats available.</td>
+                        <td><?php echo esc_html($splat['id']); ?></td>
+                        <td><?php echo esc_html($splat['title']); ?></td>
+                        <td><?php echo esc_html($splat['description']); ?></td>
+                        <td>
+                            <?php if (!empty($splat['thumbnail_url'])): ?>
+                                <img src="<?php echo esc_url($splat['thumbnail_url']); ?>"
+                                     alt="Thumbnail" width="50" height="50">
+                            <?php else: ?>
+                                <div class="placeholder-thumbnail"
+                                     style="width:50px; height:50px; background:#ccc; display:flex; align-items:center; justify-content:center;">
+                                    N/A
+                                </div>
+                            <?php endif; ?>
+                        </td>
+                        <td><?php echo esc_html(date('Y-m-d H:i', strtotime($splat['created_at']))); ?></td>
+                        <td>
+                            <input type="text"
+                                   readonly
+                                   value="[splat_shortcode id='<?php echo esc_attr($splat['id']); ?>']"
+                                   onclick="this.select();"
+                                   style="width:150px;">
+                        </td>
+                        <td>
+                            <form method="post" action="">
+                                <input type="hidden"
+                                       name="splat_id"
+                                       value="<?php echo esc_attr($splat['id']); ?>">
+                                <input type="submit"
+                                       name="delete_splat"
+                                       value="Delete"
+                                       class="button button-link-delete"
+                                       onclick="return confirm('Are you sure you want to delete this splat?');">
+                            </form>
+                        </td>
                     </tr>
-				<?php endif; ?>
+                <?php endforeach; ?>
                 </tbody>
             </table>
 
             <!-- Pagination Controls -->
             <div class="tablenav bottom">
                 <div class="tablenav-pages">
-					<?php
-					$total_items = isset( $splats['total'] ) ? $splats['total'] : 0;
-					$total_pages = ceil( $total_items / $this->limit );
+                    <?php
+                    $total_items = isset($splats['total']) ? $splats['total'] : 0;
+                    $total_pages = ceil($total_items / $this->limit);
 
-					if ( $total_pages > 1 ) {
-						$current_url   = admin_url( 'admin.php?page=gv_splat_manager' );
-						$prev_disabled = $current_page <= 1 ? 'disabled' : '';
-						$next_disabled = $current_page >= $total_pages ? 'disabled' : '';
+                    if ($total_pages > 1) {
+                        $current_url = admin_url('admin.php?page=gv_splat_manager');
+                        $prev_disabled = $current_page <= 1 ? 'disabled' : '';
+                        $next_disabled = $current_page >= $total_pages ? 'disabled' : '';
 
-						echo '<span class="pagination-links">';
+                        echo '<span class="pagination-links">';
 
-						// Previous Page
-						if ( $current_page > 1 ) {
-							$prev_page_url = add_query_arg( 'paged', $current_page - 1, $current_url );
-							echo '<a class="prev-page button" href="' . esc_url( $prev_page_url ) . '">&laquo; Previous</a>';
-						} else {
-							echo '<span class="prev-page button ' . $prev_disabled . '">&laquo; Previous</span>';
-						}
+                        // Previous Page
+                        if ($current_page > 1) {
+                            $prev_page_url = add_query_arg('paged', $current_page - 1, $current_url);
+                            echo '<a class="prev-page button" href="' . esc_url($prev_page_url) . '">&laquo; Previous</a>';
+                        } else {
+                            echo '<span class="prev-page button ' . $prev_disabled . '">&laquo; Previous</span>';
+                        }
 
-						// Page Info
-						echo '<span class="paging-input">' . $current_page . ' of ' . $total_pages . '</span>';
+                        // Page Info
+                        echo '<span class="paging-input">' . $current_page . ' of ' . $total_pages . '</span>';
 
-						// Next Page
-						if ( $current_page < $total_pages ) {
-							$next_page_url = add_query_arg( 'paged', $current_page + 1, $current_url );
-							echo '<a class="next-page button" href="' . esc_url( $next_page_url ) . '">Next &raquo;</a>';
-						} else {
-							echo '<span class="next-page button ' . $next_disabled . '">Next &raquo;</span>';
-						}
+                        // Next Page
+                        if ($current_page < $total_pages) {
+                            $next_page_url = add_query_arg('paged', $current_page + 1, $current_url);
+                            echo '<a class="next-page button" href="' . esc_url($next_page_url) . '">Next &raquo;</a>';
+                        } else {
+                            echo '<span class="next-page button ' . $next_disabled . '">Next &raquo;</span>';
+                        }
 
-						echo '</span>';
-					}
-					?>
+                        echo '</span>';
+                    }
+                    ?>
                 </div>
             </div>
         </div>
-		<?php
-		if ( isset( $_POST['delete_splat'] ) && isset( $_POST['splat_id'] ) ) {
-			Gv_Splat_HTTP::delete_splat( intval( $_POST['splat_id'] ) );
-		}
-	}
+        <?php
+        // Handle Delete Action
+        if (isset($_POST['delete_splat']) && isset($_POST['splat_id'])) {
+            $delete_response = Gv_Splat_HTTP::delete_splat(intval($_POST['splat_id']));
 
-	private function get_splats( $limit, $page ) {
-		$data = Gv_Splat_HTTP::get_splats( $limit, $page );
+            if (isset($delete_response['success']) && $delete_response['success']) {
+                ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php _e('Splat successfully deleted.', 'gv-splat'); ?></p>
+                </div>
+                <?php
+            } else {
+                $error_message = isset($delete_response['message'])
+                    ? $delete_response['message']
+                    : 'An error occurred while deleting the splat.';
+                ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><?php echo esc_html($error_message); ?></p>
+                </div>
+                <?php
+            }
+        }
+    }
 
-		// Decode JSON response
-		return json_decode( $data, true );
-	}
+    private function get_splats($limit, $page)
+    {
+        try {
+            $response = Gv_Splat_HTTP::get_splats($limit, $page);
+            $data = json_decode($response, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return new WP_Error(
+                    'json_decode_error',
+                    'Failed to decode API response: ' . json_last_error_msg()
+                );
+            }
+
+            return $data;
+        } catch (Exception $e) {
+            return new WP_Error(
+                'api_error',
+                'Failed to fetch splats: ' . $e->getMessage()
+            );
+        }
+    }
 
 	public function init() {
 		add_action( 'admin_menu', array( $this, 'add_management_page' ) );
